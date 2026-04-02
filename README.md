@@ -66,5 +66,5 @@ print(response.json())
 
 Have questions or need assistance? Don't hesitate to get in touch with us:
 
-- 📩 Email: hello@oxylabs.io
-- 💬 [Live chat support](https://oxylabs.drift.click/oxybot)
+- 📩 Email: support@oxylabs.io
+- 💬 Live chat, accessible via [Oxylabs Dashboard](https://dashboard.oxylabs.io/en/)
