@@ -1,0 +1,140 @@
+name: CI/CD - Deploy Cloud Run Job
+
+on:
+  push:
+    branches:
+      - dev_executor_deploy
+    paths:
+      - 'worker/**'
+      - '.github/workflows/dev_executor_deploy.yaml'
+
+jobs:
+  build-and-deploy-job:
+    runs-on: ubuntu-latest
+
+    env:
+      REGION: us-central1
+      JOB_NAME: lds-sc-audio-download-job
+      IMAGE_NAME: lds-sc-audio-download-job
+      # Cloud Run runtime service account (content-owner SA with YouTube + Secret access).
+      RUNTIME_SA: ${{ secrets.CLOUD_RUN_SA_DEV }}
+      # Decoupled visibility / persistence resources.
+      PUBSUB_TOPIC: job-updates
+      FIRESTORE_COLLECTION: download_jobs
+      RESULT_BUCKET: ${{ secrets.RESULT_BUCKET_DEV }}
+      # Secret Manager secret names (each :latest version is mounted as an env var).
+      SECRETS: >-
+        SMARTPROXY_GATEWAY=smartproxy-gateway:latest,
+        SMARTPROXY_USERNAME=smartproxy-username:latest,
+        SMARTPROXY_PASSWORD=smartproxy-password:latest,
+        WEBSHARE_TOKEN=webshare-token:latest,
+        YOUTUBE_SA_JSON=youtube-sa-json:latest,
+        YOUTUBE_CONTENT_OWNER_ID=youtube-content-owner-id:latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID_DEV }}
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY_DEV }}
+
+    - name: Extract GitHub repo name
+      run: echo "REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)" >> $GITHUB_ENV
+
+    - name: Ensure Artifact Registry repository exists
+      run: |
+        if ! gcloud artifacts repositories describe "$REPO_NAME" --location="$REGION" --project="${{ secrets.GCP_PROJECT_ID_DEV }}" --quiet > /dev/null 2>&1; then
+          gcloud artifacts repositories create "$REPO_NAME" \
+            --repository-format=docker \
+            --location="$REGION" \
+            --description="Docker repo for $REPO_NAME" \
+            --project="${{ secrets.GCP_PROJECT_ID_DEV }}" \
+            --quiet
+        fi
+
+    - name: Configure Docker for Artifact Registry
+      run: gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
+
+    - name: Ensure Pub/Sub topic exists
+      run: |
+        if ! gcloud pubsub topics describe "$PUBSUB_TOPIC" --project="${{ secrets.GCP_PROJECT_ID_DEV }}" --quiet > /dev/null 2>&1; then
+          gcloud pubsub topics create "$PUBSUB_TOPIC" --project="${{ secrets.GCP_PROJECT_ID_DEV }}" --quiet
+        fi
+
+    - name: Ensure result bucket exists
+      if: ${{ env.RESULT_BUCKET != '' }}
+      run: |
+        if ! gcloud storage buckets describe "gs://$RESULT_BUCKET" --project="${{ secrets.GCP_PROJECT_ID_DEV }}" --quiet > /dev/null 2>&1; then
+          gcloud storage buckets create "gs://$RESULT_BUCKET" \
+            --project="${{ secrets.GCP_PROJECT_ID_DEV }}" \
+            --location="$REGION" \
+            --uniform-bucket-level-access \
+            --quiet
+        fi
+
+    - name: Grant runtime service account IAM roles
+      run: |
+        PROJECT="${{ secrets.GCP_PROJECT_ID_DEV }}"
+        MEMBER="serviceAccount:$RUNTIME_SA"
+        # Read mounted secrets, publish progress, and write final asset records.
+        for ROLE in \
+          roles/secretmanager.secretAccessor \
+          roles/pubsub.publisher \
+          roles/datastore.user; do
+          gcloud projects add-iam-policy-binding "$PROJECT" \
+            --member="$MEMBER" --role="$ROLE" --condition=None --quiet > /dev/null
+        done
+        # Object write access on the result bucket (scoped to the bucket, not project-wide).
+        if [ -n "$RESULT_BUCKET" ]; then
+          gcloud storage buckets add-iam-policy-binding "gs://$RESULT_BUCKET" \
+            --member="$MEMBER" --role="roles/storage.objectAdmin" --quiet > /dev/null
+        fi
+
+    - name: Build Docker image
+      run: |
+        docker build -t $REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID_DEV }}/$REPO_NAME/$IMAGE_NAME:latest -f worker/Dockerfile worker/
+
+    - name: Push Docker image
+      run: |
+        docker push $REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID_DEV }}/$REPO_NAME/$IMAGE_NAME:latest
+
+    - name: Deploy or Update Cloud Run Job
+      run: |
+        SECRETS_FLAT=$(echo "$SECRETS" | tr -d '[:space:]')
+        ENV_VARS="ENVIRONMENT=development"
+        ENV_VARS="$ENV_VARS,GOOGLE_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_DEV }}"
+        ENV_VARS="$ENV_VARS,PUBSUB_TOPIC=$PUBSUB_TOPIC"
+        ENV_VARS="$ENV_VARS,FIRESTORE_COLLECTION=$FIRESTORE_COLLECTION"
+        if [ -n "$RESULT_BUCKET" ]; then
+          ENV_VARS="$ENV_VARS,RESULT_BUCKET=$RESULT_BUCKET"
+        fi
+        if gcloud run jobs describe $JOB_NAME --region $REGION --project=${{ secrets.GCP_PROJECT_ID_DEV }} --quiet > /dev/null 2>&1; then
+          echo "Updating existing Cloud Run Job..."
+          gcloud run jobs update $JOB_NAME \
+            --image $REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID_DEV }}/$REPO_NAME/$IMAGE_NAME:latest \
+            --region $REGION \
+            --service-account "$RUNTIME_SA" \
+            --task-timeout 3200 \
+            --max-retries 0 \
+            --set-env-vars "$ENV_VARS" \
+            --set-secrets "$SECRETS_FLAT" \
+            --quiet
+        else
+          echo "Creating new Cloud Run Job..."
+          gcloud run jobs create $JOB_NAME \
+            --image $REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID_DEV }}/$REPO_NAME/$IMAGE_NAME:latest \
+            --region $REGION \
+            --service-account "$RUNTIME_SA" \
+            --task-timeout 3200 \
+            --max-retries 0 \
+            --set-env-vars "$ENV_VARS" \
+            --set-secrets "$SECRETS_FLAT" \
+            --quiet
+        fi

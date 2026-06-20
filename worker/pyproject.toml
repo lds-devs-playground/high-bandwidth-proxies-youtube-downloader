@@ -1,0 +1,15 @@
+[project]
+name = "high-bandwidth-proxies-youtube-downloader"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "yt-dlp>=2024.1.0",
+    "requests>=2.31.0",
+    "google-api-python-client>=2.100.0",
+    "google-auth>=2.23.0",
+    "google-cloud-pubsub>=2.18.0",
+    "google-cloud-firestore>=2.13.0",
+    "google-cloud-storage>=2.10.0",
+]

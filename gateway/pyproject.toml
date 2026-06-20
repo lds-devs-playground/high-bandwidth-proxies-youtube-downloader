@@ -1,0 +1,13 @@
+[project]
+name = "youtube-downloader-gateway"
+version = "0.1.0"
+description = "FastAPI control-plane gateway that authenticates callers and triggers the Cloud Run worker Job."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
+    "pydantic>=2.6.0",
+    "google-cloud-run>=0.10.0",
+    "google-cloud-firestore>=2.13.0",
+]

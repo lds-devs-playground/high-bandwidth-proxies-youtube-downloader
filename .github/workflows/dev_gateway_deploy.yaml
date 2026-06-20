@@ -1,0 +1,90 @@
+name: CI/CD - Deploy Gateway Service
+
+on:
+  push:
+    branches:
+      - dev_executor_deploy
+    paths:
+      - 'gateway/**'
+      - '.github/workflows/dev_gateway_deploy.yaml'
+
+jobs:
+  build-and-deploy-gateway:
+    runs-on: ubuntu-latest
+
+    env:
+      REGION: us-central1
+      SERVICE_NAME: lds-sc-audio-gateway
+      IMAGE_NAME: lds-sc-audio-gateway
+      # Cloud Run runtime service account for the gateway (control plane only).
+      RUNTIME_SA: ${{ secrets.GATEWAY_SA_DEV }}
+      # The worker Job the gateway triggers.
+      JOB_NAME: lds-sc-audio-download-job
+      FIRESTORE_COLLECTION: download_jobs
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID_DEV }}
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY_DEV }}
+
+    - name: Extract GitHub repo name
+      run: echo "REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)" >> $GITHUB_ENV
+
+    - name: Ensure Artifact Registry repository exists
+      run: |
+        if ! gcloud artifacts repositories describe "$REPO_NAME" --location="$REGION" --project="${{ secrets.GCP_PROJECT_ID_DEV }}" --quiet > /dev/null 2>&1; then
+          gcloud artifacts repositories create "$REPO_NAME" \
+            --repository-format=docker \
+            --location="$REGION" \
+            --description="Docker repo for $REPO_NAME" \
+            --project="${{ secrets.GCP_PROJECT_ID_DEV }}" \
+            --quiet
+        fi
+
+    - name: Configure Docker for Artifact Registry
+      run: gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
+
+    - name: Grant gateway service account IAM roles
+      run: |
+        PROJECT="${{ secrets.GCP_PROJECT_ID_DEV }}"
+        MEMBER="serviceAccount:$RUNTIME_SA"
+        # Start the worker Job and read job status.
+        for ROLE in \
+          roles/run.developer \
+          roles/datastore.viewer; do
+          gcloud projects add-iam-policy-binding "$PROJECT" \
+            --member="$MEMBER" --role="$ROLE" --condition=None --quiet > /dev/null
+        done
+
+    - name: Build Docker image
+      run: |
+        docker build -t $REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID_DEV }}/$REPO_NAME/$IMAGE_NAME:latest -f gateway/Dockerfile gateway/
+
+    - name: Push Docker image
+      run: |
+        docker push $REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID_DEV }}/$REPO_NAME/$IMAGE_NAME:latest
+
+    - name: Deploy Cloud Run Service
+      run: |
+        ENV_VARS="ENVIRONMENT=development"
+        ENV_VARS="$ENV_VARS,GOOGLE_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_DEV }}"
+        ENV_VARS="$ENV_VARS,REGION=$REGION"
+        ENV_VARS="$ENV_VARS,JOB_NAME=$JOB_NAME"
+        ENV_VARS="$ENV_VARS,FIRESTORE_COLLECTION=$FIRESTORE_COLLECTION"
+        gcloud run deploy $SERVICE_NAME \
+          --image $REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID_DEV }}/$REPO_NAME/$IMAGE_NAME:latest \
+          --region $REGION \
+          --service-account "$RUNTIME_SA" \
+          --set-env-vars "$ENV_VARS" \
+          --ingress internal \
+          --no-allow-unauthenticated \
+          --quiet
