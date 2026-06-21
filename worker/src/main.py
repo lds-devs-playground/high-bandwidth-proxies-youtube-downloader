@@ -182,18 +182,22 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     geo_enabled = cfg.youtube.enabled or bool(args.api_key)
-    if geo_enabled and args.provider == "smartproxy":
+    provider = _build_provider(args)
+    if geo_enabled and args.provider in {"smartproxy", "dataimpulse"}:
         client = YouTubeClient(
             api_key=args.api_key or cfg.youtube.api_key,
             sa_json=cfg.youtube.sa_json,
             sa_file=cfg.youtube.sa_file,
             content_owner_id=cfg.youtube.content_owner_id,
         )
-        return _run_with_geo_targeting(args, cfg, client, log)
+        return _run_with_geo_targeting(args, cfg, client, log, provider)
     if geo_enabled:
-        log.warning("YouTube geo-targeting is SmartProxy-only; ignoring for %s.", args.provider)
+        log.warning(
+            "YouTube geo-targeting is unsupported for %s; using plain rotation.",
+            args.provider,
+        )
 
-    proxy_manager = build_manager(_build_provider(args))
+    proxy_manager = build_manager(provider)
 
     if len(proxy_manager) == 0:
         log.warning(
@@ -343,8 +347,10 @@ def _make_progress_hook(reporter: JobReporter):
     return hook
 
 
-def _run_with_geo_targeting(args, cfg: Settings, client: YouTubeClient, log) -> int:
-    """Resolve a viewable SmartProxy country per video, then download."""
+def _run_with_geo_targeting(
+    args, cfg: Settings, client: YouTubeClient, log, provider
+) -> int:
+    """Resolve a viewable country per video via the provider, then download."""
     publisher, store = _build_visibility(cfg)
     streamer = AudioStreamService(
         bucket=cfg.visibility.result_bucket,
@@ -364,10 +370,8 @@ def _run_with_geo_targeting(args, cfg: Settings, client: YouTubeClient, log) -> 
         try:
             target = resolve_working_proxy(
                 video_id=video_id,
+                provider=provider,
                 client=client,
-                gateway=args.smartproxy_gateway,
-                username=args.smartproxy_username,
-                password=args.smartproxy_password,
                 verify=not args.no_verify_country,
             )
         except RestrictionError as exc:

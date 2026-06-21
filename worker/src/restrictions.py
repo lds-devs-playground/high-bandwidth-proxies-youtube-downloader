@@ -21,7 +21,7 @@ from dataclasses import dataclass
 
 import requests
 
-from providers.base import build_gateway_url
+from providers.base import ProxyProvider, build_gateway_url
 from youtube_client import YouTubeAuthError, YouTubeClient
 
 logger = logging.getLogger(__name__)
@@ -162,17 +162,16 @@ def verify_proxy_country(proxy_url: str, expected: str, timeout: float = 15.0) -
 
 def resolve_working_proxy(
     video_id: str,
+    provider: ProxyProvider,
     client: YouTubeClient | None = None,
-    gateway: str | None = None,
-    username: str | None = None,
-    password: str | None = None,
-    country_format: str | None = None,
     verify: bool = True,
 ) -> GeoTarget:
-    """End-to-end: find a SmartProxy country that can view ``video_id``.
+    """End-to-end: find a country ``provider`` can view ``video_id`` through.
 
     Tries the API-recommended country first, then falls back through
-    ``COMMON_REGIONS`` (verifying each exit country) until one works.
+    ``COMMON_REGIONS`` (verifying each exit country) until one works. The proxy
+    URL for each candidate country is built via ``provider.country_proxy``, so
+    any provider with country targeting (SmartProxy, DataImpulse, ...) works.
     Raises ``RestrictionError`` if nothing usable is found.
     """
     restrictions = get_video_restrictions(video_id, client=client)
@@ -199,13 +198,12 @@ def resolve_working_proxy(
 
     last_proxy = ""
     for country in candidates:
-        proxy_url = build_country_gateway(
-            country,
-            gateway=gateway,
-            username=username,
-            password=password,
-            country_format=country_format,
-        )
+        proxy_url = provider.country_proxy(country)
+        if not proxy_url:
+            raise RestrictionError(
+                f"Provider {provider.name!r} cannot build a country-targeted "
+                "proxy; check its credentials / gateway configuration."
+            )
         last_proxy = proxy_url
 
         if not verify:
@@ -217,6 +215,6 @@ def resolve_working_proxy(
         logger.info("Country %s did not verify; trying next candidate.", country)
 
     raise RestrictionError(
-        f"No SmartProxy country could be verified for video {video_id!r}. "
+        f"No {provider.name} country could be verified for video {video_id!r}. "
         f"Last attempted proxy: {last_proxy}"
     )

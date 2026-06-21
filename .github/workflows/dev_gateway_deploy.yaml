@@ -3,7 +3,7 @@ name: CI/CD - Deploy Gateway Service
 on:
   push:
     branches:
-      - dev_executor_deploy
+      - main
     paths:
       - 'gateway/**'
       - '.github/workflows/dev_gateway_deploy.yaml'
@@ -20,7 +20,7 @@ jobs:
       RUNTIME_SA: ${{ secrets.GATEWAY_SA_DEV }}
       # The worker Job the gateway triggers.
       JOB_NAME: lds-sc-audio-download-job
-      FIRESTORE_COLLECTION: download_jobs
+      FIRESTORE_COLLECTION: audio_download_jobs
 
     steps:
     - name: Checkout code
@@ -86,5 +86,5 @@ jobs:
           --service-account "$RUNTIME_SA" \
           --set-env-vars "$ENV_VARS" \
           --ingress internal \
-          --no-allow-unauthenticated \
+          # --no-allow-unauthenticated \
           --quiet

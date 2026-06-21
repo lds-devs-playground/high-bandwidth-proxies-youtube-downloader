@@ -3,7 +3,7 @@ name: CI/CD - Deploy Cloud Run Job
 on:
   push:
     branches:
-      - dev_executor_deploy
+      - main
     paths:
       - 'worker/**'
       - '.github/workflows/dev_executor_deploy.yaml'
@@ -20,14 +20,18 @@ jobs:
       RUNTIME_SA: ${{ secrets.CLOUD_RUN_SA_DEV }}
       # Decoupled visibility / persistence resources.
       PUBSUB_TOPIC: job-updates
-      FIRESTORE_COLLECTION: download_jobs
-      RESULT_BUCKET: ${{ secrets.RESULT_BUCKET_DEV }}
+      FIRESTORE_COLLECTION: audio_download_jobs
+      RESULT_BUCKET: lds-sc-audio-download-results-test
       # Secret Manager secret names (each :latest version is mounted as an env var).
+      # Disabled providers (secrets not currently created) — re-enable here when needed:
+      #   SMARTPROXY_GATEWAY=smartproxy-gateway:latest,
+      #   SMARTPROXY_USERNAME=smartproxy-username:latest,
+      #   SMARTPROXY_PASSWORD=smartproxy-password:latest,
+      #   WEBSHARE_TOKEN=webshare-token:latest,
       SECRETS: >-
-        SMARTPROXY_GATEWAY=smartproxy-gateway:latest,
-        SMARTPROXY_USERNAME=smartproxy-username:latest,
-        SMARTPROXY_PASSWORD=smartproxy-password:latest,
-        WEBSHARE_TOKEN=webshare-token:latest,
+        DATAIMPULSE_GATEWAY=dataimpulse-gateway:latest,
+        DATAIMPULSE_USERNAME=dataimpulse-username:latest,
+        DATAIMPULSE_PASSWORD=dataimpulse-password:latest,
         YOUTUBE_SA_JSON=youtube-sa-json:latest,
         YOUTUBE_CONTENT_OWNER_ID=youtube-content-owner-id:latest
 
