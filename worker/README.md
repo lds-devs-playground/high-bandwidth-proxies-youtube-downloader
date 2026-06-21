@@ -6,6 +6,7 @@ proxies, optionally geo-targets restricted videos with the YouTube Data API, and
 reports progress/results through a decoupled visibility layer (Pub/Sub +
 Firestore + an optional HTTP callback), uploading the finished MP3 to GCS.
 
+
 This is the **data plane**. It is triggered by the [gateway](../gateway) (or any
 caller with `roles/run.developer`); it never exposes an HTTP API itself.
 
