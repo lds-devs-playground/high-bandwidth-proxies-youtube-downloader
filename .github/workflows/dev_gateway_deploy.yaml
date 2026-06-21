@@ -21,6 +21,7 @@ jobs:
       # The worker Job the gateway triggers.
       JOB_NAME: lds-sc-audio-download-job
       FIRESTORE_COLLECTION: audio_download_jobs
+      FIRESTORE_DATABASE: audio-download-jobs
 
     steps:
     - name: Checkout code
@@ -120,6 +121,7 @@ jobs:
         ENV_VARS="$ENV_VARS,REGION=$REGION"
         ENV_VARS="$ENV_VARS,JOB_NAME=$JOB_NAME"
         ENV_VARS="$ENV_VARS,FIRESTORE_COLLECTION=$FIRESTORE_COLLECTION"
+        ENV_VARS="$ENV_VARS,FIRESTORE_DATABASE=$FIRESTORE_DATABASE"
         gcloud run deploy $SERVICE_NAME \
           --image $REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID_DEV }}/$REPO_NAME/$IMAGE_NAME:latest \
           --region $REGION \

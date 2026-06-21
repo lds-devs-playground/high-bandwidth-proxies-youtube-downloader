@@ -21,6 +21,7 @@ jobs:
       # Decoupled visibility / persistence resources.
       PUBSUB_TOPIC: job-updates
       FIRESTORE_COLLECTION: audio_download_jobs
+      FIRESTORE_DATABASE: audio-download-jobs
       RESULT_BUCKET: lds-sc-audio-download-results-test
       # Secret Manager secret names (each :latest version is mounted as an env var).
       # Disabled providers (secrets not currently created) — re-enable here when needed:
@@ -93,10 +94,11 @@ jobs:
 
     - name: Ensure Firestore database exists
       run: |
-        # The worker persists final job records to the (default) Firestore database.
+        # The worker persists final job records to a named Firestore database.
         # Create it in Native mode if it is missing.
-        if ! gcloud firestore databases describe --database="(default)" --project="${{ secrets.GCP_PROJECT_ID_DEV }}" --quiet > /dev/null 2>&1; then
+        if ! gcloud firestore databases describe --database="$FIRESTORE_DATABASE" --project="${{ secrets.GCP_PROJECT_ID_DEV }}" --quiet > /dev/null 2>&1; then
           gcloud firestore databases create \
+            --database="$FIRESTORE_DATABASE" \
             --location="$REGION" \
             --type=firestore-native \
             --project="${{ secrets.GCP_PROJECT_ID_DEV }}" \
@@ -168,6 +170,7 @@ jobs:
         ENV_VARS="$ENV_VARS,GOOGLE_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_DEV }}"
         ENV_VARS="$ENV_VARS,PUBSUB_TOPIC=$PUBSUB_TOPIC"
         ENV_VARS="$ENV_VARS,FIRESTORE_COLLECTION=$FIRESTORE_COLLECTION"
+        ENV_VARS="$ENV_VARS,FIRESTORE_DATABASE=$FIRESTORE_DATABASE"
         if [ -n "$RESULT_BUCKET" ]; then
           ENV_VARS="$ENV_VARS,RESULT_BUCKET=$RESULT_BUCKET"
         fi
