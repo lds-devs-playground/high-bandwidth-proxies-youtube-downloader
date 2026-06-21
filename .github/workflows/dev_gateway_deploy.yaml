@@ -126,5 +126,5 @@ jobs:
           --service-account "$RUNTIME_SA" \
           --set-env-vars "$ENV_VARS" \
           --ingress internal \
-          # --no-allow-unauthenticated \
+          --allow-unauthenticated \
           --quiet
