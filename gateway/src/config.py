@@ -30,7 +30,7 @@ class GatewaySettings:
     firestore_database: str = "(default)"
 
     # Per-run defaults forwarded to the worker.
-    default_provider: str = "smartproxy"
+    default_provider: str = "dataimpulse"
 
     environment: str = "development"
 
@@ -43,7 +43,7 @@ class GatewaySettings:
             firestore_collection=_get("FIRESTORE_COLLECTION", "download_jobs")
             or "download_jobs",
             firestore_database=_get("FIRESTORE_DATABASE", "(default)") or "(default)",
-            default_provider=_get("DEFAULT_PROVIDER", "smartproxy") or "smartproxy",
+            default_provider=_get("DEFAULT_PROVIDER", "dataimpulse") or "dataimpulse",
             environment=_get("ENVIRONMENT", "development") or "development",
         )
 

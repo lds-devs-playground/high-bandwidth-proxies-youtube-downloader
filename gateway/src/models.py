@@ -10,7 +10,7 @@ class CreateJobRequest(BaseModel):
 
     urls: list[str] = Field(..., min_length=1, description="YouTube video URLs to download.")
     provider: str | None = Field(
-        default=None, description="Proxy provider override (smartproxy|webshare)."
+        default=None, description="Proxy provider override (dataimpulse|smartproxy|webshare)."
     )
     callback_url: HttpUrl | None = Field(
         default=None, description="URL the worker POSTs the final result to."
@@ -35,8 +35,8 @@ class CreateJobRequest(BaseModel):
         if value is None:
             return None
         normalized = value.strip().lower()
-        if normalized not in {"smartproxy", "webshare"}:
-            raise ValueError("provider must be 'smartproxy' or 'webshare'")
+        if normalized not in {"dataimpulse", "smartproxy", "webshare"}:
+            raise ValueError("provider must be 'dataimpulse', 'smartproxy', or 'webshare'")
         return normalized
 
 
