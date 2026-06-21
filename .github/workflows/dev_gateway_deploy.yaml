@@ -89,7 +89,17 @@ jobs:
         PROJECT="${{ secrets.GCP_PROJECT_ID_DEV }}"
         # The deployer (the authenticated CI identity) needs serviceAccountUser on
         # the runtime SA, otherwise `gcloud run deploy --service-account` fails.
-        DEPLOYER_SA="$(gcloud config get-value account 2>/dev/null)"
+        # Resolve the deployer email: prefer the active gcloud account, then fall
+        # back to the client_email in the auth credentials file.
+        DEPLOYER_SA="$(gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null | head -n1)"
+        if [ -z "$DEPLOYER_SA" ] && [ -n "${GOOGLE_GHA_CREDS_PATH:-}" ]; then
+          DEPLOYER_SA="$(python3 -c 'import json,os,sys; print(json.load(open(os.environ["GOOGLE_GHA_CREDS_PATH"])).get("client_email",""))' 2>/dev/null)"
+        fi
+        if [ -z "$DEPLOYER_SA" ]; then
+          echo "ERROR: could not determine the deployer service account email." >&2
+          exit 1
+        fi
+        echo "Deployer SA: $DEPLOYER_SA"
         gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SA" \
           --member="serviceAccount:$DEPLOYER_SA" \
           --role="roles/iam.serviceAccountUser" \
