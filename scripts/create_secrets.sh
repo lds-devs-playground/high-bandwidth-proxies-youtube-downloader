@@ -54,6 +54,10 @@ secret_exists() {
 upsert_secret() {
   local name="$1"
   local value="$2"
+  if [[ -z "$value" ]]; then
+    echo "ERROR: no value provided for secret '$name'. Set it in $ENV_FILE or via env var." >&2
+    exit 1
+  fi
   if secret_exists "$name"; then
     printf '%s' "$value" | gcloud secrets versions add "$name" \
       --data-file=- --project="$PROJECT_ID" --quiet >/dev/null
@@ -101,20 +105,6 @@ prompt_value() {
 
 echo "Target project: $PROJECT_ID"
 echo
-
-# Smartproxy disabled for now.
-# echo "smartproxy-gateway:"
-# upsert_secret "smartproxy-gateway" "$(prompt_value SMARTPROXY_GATEWAY 'Smartproxy gateway (host:port)')"
-
-# echo "smartproxy-username:"
-# upsert_secret "smartproxy-username" "$(prompt_value SMARTPROXY_USERNAME 'Smartproxy username')"
-
-# echo "smartproxy-password:"
-# upsert_secret "smartproxy-password" "$(prompt_value SMARTPROXY_PASSWORD 'Smartproxy password')"
-
-# Webshare disabled for now.
-# echo "webshare-token:"
-# upsert_secret "webshare-token" "$(prompt_value WEBSHARE_TOKEN 'Webshare API token')"
 
 echo "dataimpulse-gateway:"
 upsert_secret "dataimpulse-gateway" "$(prompt_value DATAIMPULSE_GATEWAY 'DataImpulse gateway (host:port)')"

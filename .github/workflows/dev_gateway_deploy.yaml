@@ -65,6 +65,17 @@ jobs:
             --member="$MEMBER" --role="$ROLE" --condition=None --quiet > /dev/null
         done
 
+    - name: Allow deployer to act as runtime service account
+      run: |
+        PROJECT="${{ secrets.GCP_PROJECT_ID_DEV }}"
+        # The deployer (the authenticated CI identity) needs serviceAccountUser on
+        # the runtime SA, otherwise `gcloud run deploy --service-account` fails.
+        DEPLOYER_SA="$(gcloud config get-value account 2>/dev/null)"
+        gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SA" \
+          --member="serviceAccount:$DEPLOYER_SA" \
+          --role="roles/iam.serviceAccountUser" \
+          --project="$PROJECT" --quiet > /dev/null
+
     - name: Build Docker image
       run: |
         docker build -t $REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID_DEV }}/$REPO_NAME/$IMAGE_NAME:latest -f gateway/Dockerfile gateway/
