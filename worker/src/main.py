@@ -229,6 +229,10 @@ def main(argv: list[str] | None = None) -> int:
             log.error("%s", exc)
             reporter.fail(str(exc), {"url": url})
             overall_failed += 1
+        except Exception as exc:  # noqa: BLE001
+            log.exception("Unexpected error processing %s", url)
+            reporter.fail(f"unexpected error: {exc}", {"url": url})
+            overall_failed += 1
 
     log.info("Done. %d succeeded, %d failed.", len(args.urls) - overall_failed, overall_failed)
     return 0 if overall_failed == 0 else 1
@@ -379,6 +383,11 @@ def _run_with_geo_targeting(
             reporter.fail(str(exc), {"url": url})
             overall_failed += 1
             continue
+        except Exception as exc:  # noqa: BLE001
+            log.exception("Unexpected error resolving proxy for %s", url)
+            reporter.fail(f"unexpected error: {exc}", {"url": url})
+            overall_failed += 1
+            continue
 
         log.info("Using %s proxy (verified=%s) for %s", target.country, target.verified, url)
         reporter.progress(JobStatus.STARTED, 0.0, {"url": url, "country": target.country})
@@ -393,6 +402,10 @@ def _run_with_geo_targeting(
         except DownloadError as exc:
             log.error("%s", exc)
             reporter.fail(str(exc), {"url": url})
+            overall_failed += 1
+        except Exception as exc:  # noqa: BLE001
+            log.exception("Unexpected error processing %s", url)
+            reporter.fail(f"unexpected error: {exc}", {"url": url})
             overall_failed += 1
 
     return 0 if overall_failed == 0 else 1

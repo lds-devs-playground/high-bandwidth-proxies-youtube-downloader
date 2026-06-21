@@ -91,6 +91,18 @@ jobs:
           gcloud pubsub topics create "$PUBSUB_TOPIC" --project="${{ secrets.GCP_PROJECT_ID_DEV }}" --quiet
         fi
 
+    - name: Ensure Firestore database exists
+      run: |
+        # The worker persists final job records to the (default) Firestore database.
+        # Create it in Native mode if it is missing.
+        if ! gcloud firestore databases describe --database="(default)" --project="${{ secrets.GCP_PROJECT_ID_DEV }}" --quiet > /dev/null 2>&1; then
+          gcloud firestore databases create \
+            --location="$REGION" \
+            --type=firestore-native \
+            --project="${{ secrets.GCP_PROJECT_ID_DEV }}" \
+            --quiet
+        fi
+
     - name: Ensure result bucket exists
       if: ${{ env.RESULT_BUCKET != '' }}
       run: |
