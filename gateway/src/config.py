@@ -27,7 +27,7 @@ class GatewaySettings:
 
     # Firestore (read-only status lookups).
     firestore_collection: str = "download_jobs"
-    firestore_database: str = "(default)"
+    firestore_database: str = "audio-download-jobs"
 
     # Per-run defaults forwarded to the worker.
     default_provider: str = "dataimpulse"
@@ -42,7 +42,7 @@ class GatewaySettings:
             job_name=_get("JOB_NAME"),
             firestore_collection=_get("FIRESTORE_COLLECTION", "download_jobs")
             or "download_jobs",
-            firestore_database=_get("FIRESTORE_DATABASE", "(default)") or "(default)",
+            firestore_database=_get("FIRESTORE_DATABASE", "audio-download-jobs") or "audio-download-jobs",
             default_provider=_get("DEFAULT_PROVIDER", "dataimpulse") or "dataimpulse",
             environment=_get("ENVIRONMENT", "development") or "development",
         )

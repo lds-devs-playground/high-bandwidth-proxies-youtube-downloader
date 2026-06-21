@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, HttpUrl, field_validator
 class CreateJobRequest(BaseModel):
     """Payload to enqueue a new download job."""
 
-    urls: list[str] = Field(..., min_length=1, description="YouTube video URLs to download.")
+    url: str = Field(..., min_length=1, description="YouTube video URL to download.")
     provider: str | None = Field(
         default=None, description="Proxy provider override (dataimpulse|smartproxy|webshare)."
     )
@@ -21,12 +21,12 @@ class CreateJobRequest(BaseModel):
     quality: str | None = Field(default=None, description="Target MP3 bitrate, e.g. '192'.")
     max_attempts: int | None = Field(default=None, ge=1, le=50)
 
-    @field_validator("urls")
+    @field_validator("url")
     @classmethod
-    def _strip_urls(cls, value: list[str]) -> list[str]:
-        cleaned = [u.strip() for u in value if u and u.strip()]
+    def _strip_url(cls, value: str) -> str:
+        cleaned = value.strip()
         if not cleaned:
-            raise ValueError("at least one non-empty URL is required")
+            raise ValueError("a non-empty URL is required")
         return cleaned
 
     @field_validator("provider")

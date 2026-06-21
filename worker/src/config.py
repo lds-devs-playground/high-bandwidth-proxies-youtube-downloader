@@ -117,7 +117,7 @@ class VisibilityConfig:
     callback_url: str = ""
     pubsub_topic: str = ""
     firestore_collection: str = ""
-    firestore_database: str = "(default)"
+    firestore_database: str = "audio-download-jobs"
     result_bucket: str = ""
     result_prefix: str = ""
 
@@ -129,7 +129,7 @@ class VisibilityConfig:
             callback_url=_get("CALLBACK_URL"),
             pubsub_topic=_get("PUBSUB_TOPIC"),
             firestore_collection=_get("FIRESTORE_COLLECTION"),
-            firestore_database=_get("FIRESTORE_DATABASE", "(default)") or "(default)",
+            firestore_database=_get("FIRESTORE_DATABASE", "audio-download-jobs") or "audio-download-jobs",
             result_bucket=_get("RESULT_BUCKET"),
             result_prefix=_get("RESULT_PREFIX"),
         )

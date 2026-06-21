@@ -52,7 +52,7 @@ def create_job(payload: CreateJobRequest) -> CreateJobResponse:
     env_overrides: dict[str, str] = {
         "JOB_ID": job_id,
         "ORIGIN_ID": effective_origin,
-        "VIDEO_URLS": ",".join(payload.urls),
+        "VIDEO_URLS": payload.url,
         "PROVIDER": payload.provider or settings.default_provider,
     }
     if payload.callback_url:

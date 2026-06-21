@@ -42,7 +42,7 @@ uv run uvicorn src.main:app --reload --port 8080
 ```bash
 curl -X POST localhost:8080/jobs \
   -H 'Content-Type: application/json' \
-  -d '{"urls":["https://youtu.be/VIDEO_ID"],"origin_id":"project-a","callback_url":"https://example.com/cb"}'
+  -d '{"url":"https://youtu.be/VIDEO_ID","origin_id":"project-a","callback_url":"https://example.com/cb"}'
 ```
 
 Calling the deployed service from another internal service account:
@@ -52,5 +52,5 @@ TOKEN=$(gcloud auth print-identity-token)
 curl -X POST "$GATEWAY_URL/jobs" \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"urls":["https://youtu.be/VIDEO_ID"],"origin_id":"project-a"}'
+  -d '{"url":"https://youtu.be/VIDEO_ID","origin_id":"project-a"}'
 ```
