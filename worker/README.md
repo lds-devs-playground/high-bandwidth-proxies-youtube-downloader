@@ -35,6 +35,7 @@ gateway / trigger
   `callback_url` ("return address" pattern), so the worker stays stateless with
   respect to other projects' databases.
 
+
 ## Layout
 
 | Path | Responsibility |

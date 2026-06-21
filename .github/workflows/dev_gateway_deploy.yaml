@@ -39,6 +39,25 @@ jobs:
     - name: Extract GitHub repo name
       run: echo "REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)" >> $GITHUB_ENV
 
+    - name: Validate runtime service account
+      run: |
+        # RUNTIME_SA must be a service account *email*, not empty or a JSON key file.
+        if [ -z "$RUNTIME_SA" ]; then
+          echo "ERROR: GATEWAY_SA_DEV secret is empty. Set it to the runtime SA email." >&2
+          exit 1
+        fi
+        if printf '%s' "$RUNTIME_SA" | grep -q '[{}"]' || [ "$(printf '%s' "$RUNTIME_SA" | wc -l)" -ne 0 ]; then
+          echo "ERROR: GATEWAY_SA_DEV looks like JSON or is multi-line." >&2
+          echo "       It must be just the service account email, e.g." >&2
+          echo "       my-sa@${{ secrets.GCP_PROJECT_ID_DEV }}.iam.gserviceaccount.com" >&2
+          exit 1
+        fi
+        if ! printf '%s' "$RUNTIME_SA" | grep -Eq '^[^@[:space:]]+@[^@[:space:]]+\.iam\.gserviceaccount\.com$'; then
+          echo "ERROR: GATEWAY_SA_DEV is not a valid service account email: $RUNTIME_SA" >&2
+          echo "       Expected format: NAME@PROJECT_ID.iam.gserviceaccount.com" >&2
+          exit 1
+        fi
+
     - name: Ensure Artifact Registry repository exists
       run: |
         if ! gcloud artifacts repositories describe "$REPO_NAME" --location="$REGION" --project="${{ secrets.GCP_PROJECT_ID_DEV }}" --quiet > /dev/null 2>&1; then
